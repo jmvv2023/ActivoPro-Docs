@@ -1,0 +1,1134 @@
+<script type="text/javascript">
+    var gk_isXlsx = false;
+    var gk_xlsxFileLookup = {};
+    var gk_fileData = {};
+    function filledCell(cell) {
+      return cell !== '' && cell != null;
+    }
+    function loadFileData(filename) {
+    if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+        try {
+            var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+            var firstSheetName = workbook.SheetNames[0];
+            var worksheet = workbook.Sheets[firstSheetName];
+
+            // Convert sheet to JSON to filter blank rows
+            var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+            // Filter out blank rows (rows where all cells are empty, null, or undefined)
+            var filteredData = jsonData.filter(row => row.some(filledCell));
+
+            // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+            var headerRowIndex = filteredData.findIndex((row, index) =>
+              row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+            );
+            // Fallback
+            if (headerRowIndex === -1 || headerRowIndex > 25) {
+              headerRowIndex = 0;
+            }
+
+            // Convert filtered JSON back to CSV
+            var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+            csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+            return csv;
+        } catch (e) {
+            console.error(e);
+            return "";
+        }
+    }
+    return gk_fileData[filename] || "";
+    }
+    </script>
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ACTIVO·PRO - Documentación Contabilidad y Tesorería</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    html { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
+    :root {
+      --color-accent: #f57c00;
+      --color-accent-light: #fff7ed;
+      --color-accent-dark-text: #9a3412;
+      --color-primary-text: #1f2937;
+    }
+    /* Sidebar */
+    .sidebar { 
+      width: 18rem; 
+      transition: transform .3s ease-in-out; 
+      transform: translateX(-100%); 
+      position: fixed; 
+      z-index: 50; 
+      height: 100%; 
+      box-shadow: 2px 0 6px rgba(0,0,0,.2); 
+      background: white; 
+    }
+    .sidebar.open { transform: translateX(0); }
+    @media (min-width: 769px) {
+      .sidebar { 
+        transform: translateX(0); 
+        position: sticky; 
+        top: 4rem; 
+        box-shadow: 1px 0 3px rgba(0,0,0,.05); 
+      }
+      .content-area { margin-left: 0rem; }
+    }
+    @media (max-width: 768px) {
+      .content-area { 
+        margin-left: 0 !important; 
+        width: 100% !important; 
+        max-width: 100% !important; 
+        padding: 1rem !important; 
+      }
+      .header-title { display: none; }
+      #search-input, #print-section { display: none; }
+    }
+    .nav-children { margin-left: .75rem; padding-top: .25rem; }
+    .nav-link { 
+      display: flex; 
+      align-items: center; 
+      padding: .4rem .75rem; 
+      margin-bottom: .15rem; 
+      border-radius: .5rem; 
+      font-size: .875rem; 
+      font-weight: 500; 
+      transition: background-color .1s, color .1s; 
+      line-height: 1.4; 
+      text-decoration: none; 
+      color: inherit; 
+    }
+    .nav-link.active, .parent.active > .nav-link { 
+      background-color: var(--color-accent-light); 
+      color: var(--color-accent); 
+      font-weight: 600; 
+    }
+    .nav-link:hover:not(.active) { 
+      background-color: #f3f4f6; 
+      color: var(--color-primary-text); 
+    }
+    .nav-link svg { margin-right: .5rem; flex-shrink: 0; }
+    .anchor-padding { 
+      display: block; 
+      position: relative; 
+      top: -88px; 
+      visibility: hidden; 
+      pointer-events: none; 
+    }
+    .doc-table { border-collapse: collapse; }
+    .doc-table th { 
+      background: #e5e7eb; 
+      text-align: left; 
+      padding: .75rem 1rem; 
+      font-weight: 700; 
+      color: #374151; 
+      font-size: .875rem; 
+      text-transform: uppercase; 
+    }
+    .doc-table td { 
+      padding: .75rem 1rem; 
+      border-top: 1px solid #e5e7eb; 
+      font-size: .9375rem; 
+    }
+    .callout { 
+      padding: 1.25rem; 
+      border-radius: .75rem; 
+      margin-top: 1.5rem; 
+      margin-bottom: 1.5rem; 
+      display: flex; 
+      align-items: flex-start; 
+      gap: 1rem; 
+      box-shadow: 0 1px 3px rgba(0,0,0,.05); 
+    }
+    .callout-icon { 
+      flex-shrink: 0; 
+      width: 1.25rem; 
+      height: 1.25rem; 
+      margin-top: .1rem; 
+    }
+    .callout.note { 
+      border-left: 5px solid #3b82f6; 
+      background: #f0f9ff; 
+    }
+    .callout.warning { 
+      border-left: 5px solid #f59e0b; 
+      background: #fffdfc; 
+    }
+    .callout.tip { 
+      border-left: 5px solid var(--color-accent); 
+      background: var(--color-accent-light); 
+    }
+    .key-field-card { 
+      background: #fff; 
+      padding: 1rem; 
+      border-radius: .75rem; 
+      border: 1px solid #e5e7eb; 
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,.03); 
+      transition: transform .2s, box-shadow .2s; 
+    }
+    .key-field-card:hover { 
+      transform: translateY(-2px); 
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,.05); 
+    }
+    .concept-table th, .concept-table td { 
+      text-align: left; 
+      padding: .5rem .75rem; 
+      font-size: .875rem; 
+    }
+    .concept-table th { 
+      background: #f3f4f6; 
+      font-weight: 600; 
+    }
+    .concept-table td { 
+      border: 1px solid #e5e7eb; 
+    }
+    .skip-link { 
+      position: absolute; 
+      left: 0; 
+      top: -40px; 
+      background: #111827; 
+      color: white; 
+      padding: .5rem 1rem; 
+      z-index: 60; 
+      border-radius: 0 .5rem .5rem 0; 
+      transition: top .2s; 
+    }
+    .skip-link:focus { 
+      top: 0; 
+      outline: none; 
+    }
+    #print-section { 
+      background: var(--color-accent); 
+      color: white; 
+      padding: .4rem .6rem; 
+      border-radius: .5rem; 
+      font-weight: 600; 
+    }
+    .nav-link:focus { 
+      outline: 2px solid var(--color-accent); 
+      outline-offset: 2px; 
+    }
+    @media (max-width: 640px) {
+      #content-area { padding: 1rem !important; }
+      h1 { font-size: 1.6rem; }
+      h2 { font-size: 1.25rem; }
+      .nav-link span { font-size: 0.9rem; }
+      .key-field-card { padding: 0.75rem; }
+      .doc-table th, .doc-table td { font-size: 0.85rem; padding: 0.5rem; }
+    }
+    @media print {
+      header, #sidebar, #print-section, .skip-link, #menu-toggle, input[type="text"] { display: none !important; }
+      #content-area { 
+        width: 100% !important; 
+        padding: 0 !important; 
+        margin: 0 auto !important; 
+        box-shadow: none !important; 
+        background: white !important; 
+      }
+      body { 
+        color: #000 !important; 
+        background: #fff !important; 
+        -webkit-print-color-adjust: exact; 
+      }
+      h1 { font-size: 22pt; }
+      h2 { font-size: 14pt; }
+      h3 { font-size: 12pt; }
+      p, li, td, th { font-size: 10pt; }
+      .callout, .key-field-card, .doc-table, .concept-table { 
+        box-shadow: none !important; 
+        border: 1px solid #ddd !important; 
+        background: transparent !important; 
+      }
+      section { 
+        page-break-inside: avoid; 
+        margin-bottom: 0.8cm; 
+      }
+      .anchor-padding { 
+        top: 0 !important; 
+        display: none !important; 
+      }
+      table { 
+        page-break-inside: auto; 
+        width: 100% !important; 
+        border-collapse: collapse; 
+      }
+      tr { 
+        page-break-inside: avoid; 
+        page-break-after: auto; 
+      }
+      th, td { word-wrap: break-word; }
+      img, svg { 
+        max-width: 100% !important; 
+        height: auto !important; 
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+  <a class="skip-link" href="#content-area">Ir al contenido</a>
+
+  <header class="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-40 shadow-md" role="banner">
+    <div class="flex items-center space-x-4">
+      <button id="menu-toggle" aria-controls="sidebar" aria-expanded="false" class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 focus:outline-none" aria-label="Abrir menú">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+      </button>
+      <a href="#0_start" class="flex items-center space-x-2" aria-label="Ir al inicio">
+        <div class="h-8 w-8 bg-[var(--color-accent)] rounded-full flex items-center justify-center shadow-lg">
+          <span class="text-white font-black text-xl leading-none pt-0.5">A</span>
+        </div>
+        <h1 class="text-xl font-extrabold text-[var(--color-primary-text)]">ACTIVO<span class="font-light">·PRO</span></h1>
+      </a>
+    </div>
+
+    <div class="flex items-center space-x-4">
+      <div class="relative w-full max-w-xs ml-4 sm:ml-0">
+        <input type="text" id="search-input" aria-label="Buscar secciones" placeholder="Buscar secciones..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)] text-sm transition duration-150 shadow-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
+
+      <button id="print-section" title="Imprimir sección visible" aria-label="Imprimir sección visible">Imprimir</button>
+    </div>
+  </header>
+
+  <div class="flex pt-16">
+    <nav id="sidebar" class="sidebar bg-white overflow-y-auto p-4 h-[calc(100vh-4rem)] flex-shrink-0 z-50" role="navigation" aria-label="Índice de la documentación">
+      <ul class="nav flex-column space-y-2">
+        <li class="nav-item parent" data-section="0_start">
+          <a class="nav-link active font-bold text-gray-700 hover:text-gray-900" href="#0_start"> 
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 stroke-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span>Inicio y Resumen</span>
+          </a>
+        </li>
+
+        <li class="nav-item parent mt-4" data-section="1_contactos">
+          <a class="nav-link font-bold text-gray-700 hover:text-gray-900" href="#1_contactos"> 
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 stroke-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            <span>1. Contactos (Terceros)</span>
+          </a>
+          <ul class="nav-children mt-1 space-y-1">
+            <li class="nav-item"><a class="nav-link text-gray-600 hover:text-gray-900" href="#11_clientes">1.1 Clientes/Usuarios</a></li>
+            <li class="nav-item"><a class="nav-link text-gray-600 hover:text-gray-900" href="#12_proveedores">1.2 Proveedores/Acreedores</a></li>
+            <li class="nav-item"><a class="nav-link text-gray-600 hover:text-gray-900" href="#13_cuentas_bancarias">1.3 Cuentas Bancarias</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item parent mt-4" data-section="2_facturacion">
+          <a class="nav-link font-bold text-gray-700 hover:text-gray-900" href="#2_facturacion">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 stroke-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+            <span>2. Facturación</span>
+          </a>
+        </li>
+
+        <li class="nav-item parent mt-4" data-section="3_tesoreria">
+          <a class="nav-link font-bold text-gray-700 hover:text-gray-900" href="#3_tesoreria">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 stroke-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>3. Tesorería (Cobros y Pagos)</span>
+          </a>
+        </li>
+
+        <li class="nav-item parent mt-4" data-section="4_apuntes">
+          <a class="nav-link font-bold text-gray-700 hover:text-gray-900" href="#4_apuntes">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 stroke-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/></svg>
+            <span>4. Apuntes y Asientos</span>
+          </a>
+          <ul class="nav-children mt-1 space-y-1">
+            <li class="nav-item"><a class="nav-link text-gray-600 hover:text-gray-900" href="#41_alta_facturas_recibidas">4.1 Alta Asientos Facturas Recibidas</a></li>
+            <li class="nav-item"><a class="nav-link text-gray-600 hover:text-gray-900" href="#42_alta_asientos_bancos">4.2 Alta Asientos Bancos</a></li>
+            <li class="nav-item"><a class="nav-link text-gray-600 hover:text-gray-900" href="#43_cartera_cobros_pagos">4.3 Cartera Cobros y Pagos (Previsión)</a></li>
+            <li class="nav-item"><a class="nav-link text-gray-600 hover:text-gray-900" href="#44_norma43_cbtf">4.4 Norma 43 y CBTF/EXCEL</a></li>
+            <li class="nav-item"><a class="nav-link text-gray-600 hover:text-gray-900" href="#45_otros_procesos_asientos">4.5 Otros Procesos en Asientos</a></li>
+            <li class="nav-item"><a class="nav-link text-gray-600 hover:text-gray-900" href="#46_inbox_documentos">4.6 Inbox de Documentos</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item parent mt-4" data-section="5_inmovilizado">
+          <a class="nav-link font-bold text-gray-700 hover:text-gray-900" href="#5_inmovilizado">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 stroke-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 11l-8 8l-2-2l8-8z"/></svg>
+            <span>5. Inmovilizado y Amortizaciones</span>
+          </a>
+        </li>
+
+        <li class="nav-item parent mt-4" data-section="6_plan_contable">
+          <a class="nav-link font-bold text-gray-700 hover:text-gray-900" href="#6_plan_contable">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 stroke-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 15a4 4 0 0 0 4 4"/></svg>
+            <span>6. Plan Contable (Estructura)</span>
+          </a>
+          <ul class="nav-children mt-1 space-y-1">
+            <li class="nav-item"><a class="nav-link text-gray-600 hover:text-gray-900" href="#61_estructura_codificacion">6.1 Estructura y Codificación</a></li>
+            <li class="nav-item"><a class="nav-link text-gray-600 hover:text-gray-900" href="#62_cuentas_terceros">6.2 Cuentas de Terceros</a></li>
+            <li class="nav-item"><a class="nav-link text-gray-600 hover:text-gray-900" href="#63_automatizacion_tributaria">6.3 Automatización Tributaria</a></li>
+            <li class="nav-item"><a class="nav-link text-gray-600 hover:text-gray-900" href="#64_planes_predefinidos">6.4 Planes Predefinidos</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item parent mt-4" data-section="7_informes">
+          <a class="nav-link font-bold text-gray-700 hover:text-gray-900" href="#7_informes">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 stroke-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/></svg>
+            <span>7. Informes y Extractos</span>
+          </a>
+        </li>
+
+        <li class="nav-item parent mt-4" data-section="8_configuracion">
+          <a class="nav-link font-bold text-gray-700 hover:text-gray-900" href="#8_configuracion">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 stroke-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/></svg>
+            <span>8. Configuración (Auxiliares)</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <main id="content-area" class="content-area flex-1 p-8 lg:p-12 transition-all duration-300 min-h-screen" tabindex="-1" role="main">
+      <div class="max-w-4xl mx-auto">
+
+        <a class="anchor-padding" id="0_start"></a>
+        <section class="mb-16" id="s_0_start">
+          <h1 class="text-5xl font-extrabold text-[var(--color-primary-text)] mb-4 leading-tight">Guía de Usuario ActivoPro®</h1>
+          <p class="text-xl text-gray-500 mb-8 pb-4 border-b border-gray-200">Bienvenido a la documentación oficial. Esta es una guía detalladas para el uso de las funcionalidades de <strong>ActivoPro®</strong>.</p>
+        </section>
+
+        <a class="anchor-padding" id="1_contactos"></a>
+        <section class="mb-16" id="s_1_contactos">
+          <h2 class="text-3xl font-bold text-[var(--color-primary-text)] mt-12 mb-6 border-b pb-2">1. Contactos (Terceros)</h2>
+          <p class="text-gray-700 mb-8">El módulo de Contactos es la base del sistema, permitiendo dar de alta, modificar y gestionar clientes, proveedores, acreedores y cuentas bancarias. Estos elementos o terceros con los que interactua su operativa son cruciales para el correcto funcionamiento de las operaciones de contabilidad, facturación y la tesorería.</p>
+
+          <a class="anchor-padding" id="11_clientes"></a>
+          <h3 class="text-2xl font-semibold text-gray-700 mb-4">1.1 Clientes/Usuarios – Altas, Modificaciones y Consultas</h3>
+          <p class="mb-4 text-gray-600">Para gestionar la ficha de un Cliente, siga la siguiente ruta: <strong>Menú → Contactos → Clientes/Usuarios</strong>.</p>
+
+          <div class="callout note">
+            <svg xmlns="http://www.w3.org/2000/svg" class="callout-icon text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <div>
+              <p class="callout-title font-extrabold">ALTA RÁPIDA</p>
+              <p class="callout-content text-sm">Para dar de <strong>ALTA</strong> un nuevo cliente, haga clic en el botón <strong>Nuevo</strong>. Por defecto el sistema le propondrá un identificador automático numérico,  puede aceptarlo o inreoducir manuelamente el identificador deseado. Los campos obligatorios los encontrará identificados en la pestaña <strong>General</strong>.</p>
+            </div>
+          </div>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-8 mb-4">Pestañas de la Ficha del Cliente:</h4>
+          <ul class="list-disc list-outside ml-6 space-y-3 mb-8 text-gray-700">
+            <li><strong>General:</strong> Datos básicos (nombre, NIF/CIF). Para particulares marque <strong>“PARTICULAR”</strong> en Clase de Cliente.</li>
+            <li><strong>Condiciones de Cobro:</strong> Define la forma de cobro. (Ver sección 3 Tesorería).</li>
+            <li><strong>Cuentas:</strong> Cuenta de ingreso y el IVA por defecto.</li>
+            <li><strong>Información Adicional:</strong> Contactos internos y notas.</li>
+            <li><strong>FACe:</strong> Centros de facturación para FACTURAe.</li>
+            <li><strong>Facturas:</strong> Histórico de facturas emitidas.</li>
+          </ul>
+
+          <a class="anchor-padding" id="12_proveedores"></a>
+          <h3 class="text-2xl font-semibold text-gray-700 mb-4">1.2 Proveedores/Acreedores – Altas y Gestión</h3>
+          <p class="mb-4 text-gray-600">Para gestionar Proveedores o Acreedores, utilice <strong>Menú → Contactos → Proveedores</strong> o <strong>→ Acreedores</strong>.</p>
+
+          <div class="callout warning">
+            <svg xmlns="http://www.w3.org/2000/svg" class="callout-icon text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+            <div>
+              <p class="callout-title font-extrabold">GESTIÓN DE DATOS CRUCIALES</p>
+              <p class="callout-content text-sm">Las cuentas de Proveedores y Acreedores deben crearse aquí para garantizar que la información fiscal y la forma de pago queden correctamente registradas, vinculándose al Plan Contable.</p>
+            </div>
+          </div>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-8 mb-4">Pestañas Específicas:</h4>
+          <ul class="list-disc list-outside ml-6 space-y-3 mb-8 text-gray-700">
+            <li><strong>Condiciones de Pago:</strong> Seleccione la forma de pago acordada.</li>
+            <li><strong>Cuentas:</strong> Cuenta de compra/gasto y el IVA por defecto.</li>
+            <li><strong>Información Adicional:</strong> Contactos y notas.</li>
+          </ul>
+
+          <a class="anchor-padding" id="13_cuentas_bancarias"></a>
+          <h3 class="text-2xl font-semibold text-gray-700 mb-4">1.3 Cuentas Bancarias</h3>
+          <p class="text-gray-500 italic bg-gray-100 p-4 rounded-lg">Documentación pendiente. Este apartado detallará el alta de cuentas bancarias y su vinculación con la contabilidad (grupo 57) para la gestión de tesorería y la importación de movimientos (Norma 43 / CBTF).</p>
+        </section>
+
+        <!-- Secciones 2..3 (sin cambios) -->
+
+        <a class="anchor-padding" id="2_facturacion"></a>
+        <section class="mb-16" id="s_2_facturacion">
+          <h2 class="text-3xl font-bold text-[var(--color-primary-text)] mt-12 mb-6 border-b pb-2">2. Facturación</h2>
+          <p class="text-gray-500 italic bg-gray-100 p-4 rounded-lg">Documentación pendiente. Cubrirá: Configuración Inicial, Modelos de Factura, Familias y Productos, Emisión de Facturas (Normal/Simplificada) y Procedimiento para Factura Rectificativa.</p>
+        </section>
+
+        <a class="anchor-padding" id="3_tesoreria"></a>
+        <section class="mb-16" id="s_3_tesoreria">
+          <h2 class="text-3xl font-bold text-[var(--color-primary-text)] mt-12 mb-6 border-b pb-2">3. Tesorería (Cobros y Pagos)</h2>
+          <p class="text-gray-500 italic bg-gray-100 p-4 rounded-lg">Documentación pendiente. Cubrirá: Cartera de Pagos, Cartera de Cobros y la lógica detallada de vencimientos y días de pago/cobro fijos.</p>
+        </section>
+
+        <a class="anchor-padding" id="4_apuntes"></a>
+        <section class="mb-16" id="s_4_apuntes">
+          <h2 class="text-3xl font-bold text-[var(--color-primary-text)] mt-12 mb-6 border-b pb-2">4. Apuntes y Asientos</h2>
+
+          <a class="anchor-padding" id="41_alta_facturas_recibidas"></a>
+          <h3 class="text-2xl font-semibold text-gray-700 mb-4">4.1 ALTA ASIENTOS FACTURAS RECIBIDAS</h3>
+          <p class="mb-4 text-gray-600">Para dar de alta un nuevo asiento de facturas recibidas, navegue a: <strong>Menú > Asientos > Facturas Recibidas > Compras, Gastos y Servicios</strong>. Cumplimente la información requerida y haga clic en <strong>Guardar</strong> para confirmar el alta.</p>
+
+          <div class="callout tip">
+            <svg xmlns="http://www.w3.org/2000/svg" class="callout-icon text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+            <div>
+              <p class="callout-title font-extrabold">AUTOMATIZACIÓN</p>
+              <p class="callout-content text-sm">Al configurar la cuenta del proveedor/acreedor, el sistema sugerirá automáticamente la cuenta de gasto asociada y el porcentaje de IVA/IRPF si corresponde, basándose en la ficha del tercero.</p>
+            </div>
+          </div>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-10 mb-6">Campos Clave del Asiento:</h4>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Fecha operación</p>
+              <p class="text-gray-600 text-sm">Fecha de registro contable. Puede coincidir o no con la fecha de la factura original.</p>
+            </div>
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Proveedor/Acreedor</p>
+              <p class="text-gray-600 text-sm">Indique el nombre o cuenta contable del proveedor/acreedor.</p>
+            </div>
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Concepto</p>
+              <p class="text-gray-600 text-sm">Seleccione de la lista el concepto que mejor represente el tipo de movimiento contable a realizar.</p>
+            </div>
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">No / De fecha</p>
+              <p class="text-gray-600 text-sm"><strong>No:</strong> Número de factura del proveedor. <strong>De fecha:</strong> Fecha de factura del proveedor.</p>
+            </div>
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Serie/Documento</p>
+              <p class="text-gray-600 text-sm">Indique la serie/documento contable. Si hay numeración automática, el sistema la asignará.</p>
+            </div>
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Total factura</p>
+              <p class="text-gray-600 text-sm">Total con IVA incluido.</p>
+            </div>
+            <div class="key-field-card col-span-full">
+              <p class="font-bold text-[var(--color-accent)]">% IVA / Base Imponible / Cuota</p>
+              <p class="text-gray-600 text-sm">Introduzca el % de IVA y la base imponible. El sistema calculará la cuota; si hay diferencias de redondeo se puede ajustar manualmente.</p>
+            </div>
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Deducibilidad</p>
+              <p class="text-gray-600 text-sm">Seleccione: Deducible, Exento, Parcial, etc.</p>
+            </div>
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">IRPF Base / IRPF % / IRPF Cuota</p>
+              <p class="text-gray-600 text-sm">Indique la base y el tipo de retención para calcular la cuota.</p>
+            </div>
+          </div>
+
+          <a class="anchor-padding" id="42_alta_asientos_bancos"></a>
+          <h3 class="text-2xl font-semibold text-gray-700 mt-12 mb-4">4.2 ALTA ASIENTOS BANCOS</h3>
+          <p class="mb-4 text-gray-600">Menú → Asientos → Bancos, Contabilizar Apuntes. Complete y Guardar.</p>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-10 mb-6">Campos Clave y Contabilización:</h4>
+          <div class="grid md:grid-cols-2 gap-4 mb-6">
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Fecha operación</p>
+              <p class="text-gray-600 text-sm">Fecha del movimiento bancario.</p>
+            </div>
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Cuenta contable</p>
+              <p class="text-gray-600 text-sm">Ej. 572.XXX</p>
+            </div>
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Contrapartida</p>
+              <p class="text-gray-600 text-sm">Ej. 430 clientes, 410 proveedores.</p>
+            </div>
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Cobros / Pagos</p>
+              <p class="text-gray-600 text-sm">Indique importe en Cobros (DEBE) o Pagos (HABER).</p>
+            </div>
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Comisión / Cuenta de Gasto</p>
+              <p class="text-gray-600 text-sm">Si existe comisión, especifique cuenta de gasto.</p>
+            </div>
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Asiento con Comisión</p>
+              <p class="text-gray-600 text-sm">La comisión se carga al DEBE y el saldo al HABER en la cuenta bancaria.</p>
+            </div>
+          </div>
+
+          <a class="anchor-padding" id="43_cartera_cobros_pagos"></a>
+          <h3 class="text-2xl font-semibold text-gray-700 mt-12 mb-4">4.3 Cartera Cobros y Pagos (Previsión)</h3>
+          <p class="mb-4 text-gray-700">La contabilización de Cobros y Pagos se enlaza con la previsión del sistema.</p>
+          <p class="mb-6 text-gray-600">Tras pulsar <strong>Guardar (F2)</strong>, el programa mostrará facturas pendientes para seleccionar y aplicar.</p>
+
+          <div class="callout warning">
+            <svg xmlns="http://www.w3.org/2000/svg" class="callout-icon text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94"/></svg>
+            <div>
+              <p class="callout-title font-extrabold">LA REGLA DE ORO</p>
+              <p class="callout-content text-sm">El total del asiento debe coincidir con el total de las facturas seleccionadas; si no coincide, el sistema aplicará lógica de diferencias.</p>
+            </div>
+          </div>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-8 mb-4">Escenarios de Diferencia en la Aplicación:</h4>
+          <ol class="list-decimal list-outside ml-6 space-y-3 mb-8 text-gray-700">
+            <li><strong class="text-[var(--color-accent)]">a) Importe Inferior:</strong> Se aplica a la última factura seleccionada, quedando pendiente la diferencia.</li>
+            <li><strong class="text-[var(--color-accent)]">b) Importe Superior:</strong> El sobrante queda como cobro/pago a cuenta de próximas facturas.</li>
+            <li><strong class="text-[var(--color-accent)]">c) No aplicable o sin facturas:</strong> Queda como pendiente de aplicar.</li>
+          </ol>
+
+          <div class="callout note">
+            <svg xmlns="http://www.w3.org/2000/svg" class="callout-icon text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2"/></svg>
+            <div>
+              <p class="callout-title font-extrabold">ADJUNTAR DOCUMENTACIÓN</p>
+              <p class="callout-content text-sm">Puede escanear y adjuntar comprobantes directamente al asiento.</p>
+            </div>
+          </div>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-12 mb-4">Tipos de Asientos para Cobros y Pagos:</h4>
+          <div class="grid md:grid-cols-3 gap-4">
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Asiento de Caja (Efectivo)</p>
+              <p class="text-gray-600 text-sm"><strong>Ruta:</strong> Menú → Asientos → Caja</p>
+            </div>
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Asiento de Bancos (Cheques, Transf.)</p>
+              <p class="text-gray-600 text-sm"><strong>Ruta:</strong> Menú → Asientos → Bancos, Contabilizar apuntes</p>
+            </div>
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Asiento de Varios (Tarjetas, Efectos)</p>
+              <p class="text-gray-600 text-sm"><strong>Ruta:</strong> Menú → Asientos → Varios → Varios</p>
+            </div>
+          </div>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-8 mb-4">Gestión de Importes Pendientes de Aplicar:</h4>
+          <p class="mb-4 text-gray-600">Para aplicar importes pendientes use:</p>
+          <ul class="list-disc list-outside ml-6 space-y-2 mb-8 text-gray-700">
+            <li><strong>Cobros pendientes:</strong> Menú → Tesorería → Cobros → Importes pdtes de aplicar</li>
+            <li><strong>Pagos pendientes:</strong> Menú → Tesorería → Pagos → Importes pdtes de aplicar</li>
+          </ul>
+
+          <a class="anchor-padding" id="44_norma43_cbtf"></a>
+          <h3 class="text-2xl font-semibold text-gray-700 mt-12 mb-4">4.4 Norma 43 y CBTF/EXCEL (Importación de Movimientos Bancarios)</h3>
+          <p class="mb-4 text-gray-600">Permite automatizar la creación de asientos a partir de ficheros de movimientos bancarios (.txt o Excel).</p>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-8 mb-4">Paso 1: Seleccionar Fichero y Procesar</h4>
+          <p class="mb-4 text-gray-600">Menú → Asientos → Importaciones asientos Excel → N43 o CBTF/EXCEL. Seleccione archivo y pulse <strong>Importar</strong>.</p>
+          <p class="mb-6 text-gray-600">ACTIVO·PRO® generará una plantilla con los conceptos y abrirá una hoja Excel con importes.</p>
+
+          <div class="callout note">
+            <svg xmlns="http://www.w3.org/2000/svg" class="callout-icon text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+            <div>
+              <p class="callout-title font-extrabold">PREREQUISITO</p>
+              <p class="callout-content text-sm">La cuenta bancaria debe estar dada de alta: Menú → Contactos → Bancos.</p>
+            </div>
+          </div>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-8 mb-4">Paso 2: Mantenimiento de la Plantilla (Limpiar y Enseñar)</h4>
+          <p class="mb-4 text-gray-600">Use el botón <strong>Plantilla</strong> y seleccione la del banco para identificar líneas relevantes.</p>
+
+          <p class="font-semibold text-gray-700 mt-4 mb-2">Reglas de Configuración:</p>
+          <ul class="list-disc list-outside ml-6 space-y-2 mb-6 text-gray-600">
+            <li>Deje en las columnas <strong>Concepto</strong> y <strong>Operación</strong> la parte coincidente del texto.</li>
+            <li>Columna <strong>X</strong>: use <strong>NO</strong> para conservar la línea; <strong>SI</strong> para eliminarla.</li>
+            <li>Complete nº de cuenta, clave y centro para las líneas con <strong>X = NO</strong>.</li>
+          </ul>
+
+          <p class="font-semibold text-gray-700 mt-4 mb-2">Ejemplo de Limpieza de Conceptos:</p>
+          <div class="bg-white p-4 rounded-lg border border-gray-200 overflow-x-auto mb-6 shadow-sm">
+            <table class="concept-table w-full">
+              <thead><tr><th>CONCEPTO</th><th>OPERACION</th><th>X</th></tr></thead>
+              <tbody>
+                <tr><td>VENCIMENT :PIER</td><td></td><td>SI</td></tr>
+                <tr><td class="font-bold">LLIURADOR : ENUMBERS ONLINE SO</td><td></td><td>NO</td></tr>
+                <tr><td>CONCEPTE :</td><td></td><td>SI</td></tr>
+                <tr><td>REFERENCIA CLIENT :</td><td></td><td>SI</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-gray-600 text-sm italic">En este ejemplo, solo la línea con <strong>LLIURADOR : ENUMBERS ONLINE SO</strong> se conservará.</p>
+
+          <h5 class="text-lg font-semibold text-gray-700 mt-6 mb-2">Excepciones (Columna 'EX')</h5>
+          <p class="mb-4 text-gray-600">Use la columna <strong>EX</strong> si desea que un concepto corto no coincida dentro de conceptos más largos y apunte a cuentas diferentes.</p>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-8 mb-4">Paso 3: Volver a Procesar el Fichero</h4>
+          <p class="mb-4 text-gray-600">Vuelva a procesar para verificar la plantilla; la hoja mostrará solo los conceptos con <strong>X = NO</strong>.</p>
+
+          <div class="callout tip">
+            <svg xmlns="http://www.w3.org/2000/svg" class="callout-icon text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <div>
+              <p class="callout-title font-extrabold">AHORRO DE TIEMPO</p>
+              <p class="callout-content text-sm">La limpieza y enseñanza se realiza una sola vez; en procesos posteriores solo aparecerán nuevos conceptos no reconocidos.</p>
+            </div>
+          </div>
+
+          <a class="anchor-padding" id="45_otros_procesos_asientos"></a>
+          <h3 class="text-2xl font-semibold text-gray-700 mt-12 mb-4">4.5 Otros Procesos en Asientos</h3>
+          <p class="text-gray-500 italic bg-gray-100 p-4 rounded-lg">Documentación pendiente. Continuaremos con: Facturas Emitidas, Gestión de Cobros y Pagos (Tesorería).</p>
+
+          <a class="anchor-padding" id="46_inbox_documentos"></a>
+          <h3 class="text-2xl font-semibold text-gray-700 mt-12 mb-4">4.6 Inbox de Documentos</h3>
+          <p class="mb-4 text-gray-600">El Inbox de Documentos es una herramienta centralizada para subir, organizar y procesar documentos financieros y contables directamente en el sistema. Acceda a ella desde <strong>Menú → Asientos → Inbox</strong>. Esta funcionalidad optimiza el flujo de trabajo al permitir adjuntar documentos a asientos contables de manera intuitiva y eficiente, reduciendo errores y mejorando la trazabilidad.</p>
+
+          <div class="callout tip">
+            <svg xmlns="http://www.w3.org/2000/svg" class="callout-icon text-[var(--color-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+            <div>
+              <p class="callout-title font-extrabold">BENEFICIOS UX</p>
+              <p class="callout-content text-sm">El Inbox está diseñado para ser intuitivo: arrastre y suelte documentos, o envíelos por email para un procesamiento rápido. La interfaz visualiza documentos en bandejas claras, facilitando la navegación en dispositivos móviles con toques simples.</p>
+            </div>
+          </div>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-8 mb-4">Subir Documentos</h4>
+          <p class="mb-4 text-gray-600">Para subir documentos, haga clic en el botón <strong>Subir Doc.</strong> y seleccione archivos PDF desde su dispositivo (facturas, recibos, comprobantes de pago, etc.). Alternativamente, envíe documentos por correo electrónico a:</p>
+          <ul class="list-disc list-outside ml-6 space-y-2 mb-6 text-gray-700">
+            <li><strong>login.facturas@activopro.net</strong>: Para facturas recibidas (sustituya "login" por su ID de acceso a la empresa).</li>
+            <li><strong>login.docs@activopro.net</strong>: Para otros documentos financieros.</li>
+          </ul>
+          <p class="text-gray-600 text-sm italic">Esta opción de email facilita la integración con escáneres o apps móviles, permitiendo un flujo de trabajo remoto y dinámico.</p>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-8 mb-4">Organización en Bandejas</h4>
+          <p class="mb-4 text-gray-600">El Inbox se divide en dos categorías principales para una clasificación inicial clara y eficiente:</p>
+          <div class="grid md:grid-cols-2 gap-4 mb-6">
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Facturas Recibidas</p>
+              <p class="text-gray-600 text-sm">Suba aquí las facturas recibidas de proveedores. Posteriormente, puede moverlas a otras bandejas si es necesario.</p>
+            </div>
+            <div class="key-field-card">
+              <p class="font-bold text-[var(--color-accent)]">Otros</p>
+              <p class="text-gray-600 text-sm">Incluye recibos, comprobantes y cualquier documento financiero no clasificado como factura recibida.</p>
+            </div>
+          </div>
+          <p class="mb-4 text-gray-600">Para mover documentos entre bandejas (Facturas Recibidas, Otros o Papelera):</p>
+          <ol class="list-decimal list-outside ml-6 space-y-3 mb-8 text-gray-700">
+            <li>Seleccione el documento.</li>
+            <li>Elija el nuevo destino en el menú <strong>Mover a</strong>.</li>
+            <li>Haga clic en <strong>Guardar</strong>.</li>
+          </ol>
+          <div class="callout warning">
+            <svg xmlns="http://www.w3.org/2000/svg" class="callout-icon text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+            <div>
+              <p class="callout-title font-extrabold">GESTIÓN DE ERRORES</p>
+              <p class="callout-content text-sm">Si sube un documento duplicado, erróneo o que desea posponer, muévalo a la <strong>Papelera</strong>. Los documentos en Papelera no se eliminan permanentemente, permitiendo recuperación si es necesario.</p>
+            </div>
+          </div>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-8 mb-4">Clasificación en "Otros"</h4>
+          <p class="mb-4 text-gray-600">En la bandeja "Otros", los documentos se clasifican por tipo de programa contable para una contabilización precisa:</p>
+          <ul class="list-disc list-outside ml-6 space-y-2 mb-6 text-gray-700">
+            <li><strong>Caja:</strong> Para movimientos en efectivo.</li>
+            <li><strong>Banco:</strong> Para transacciones bancarias.</li>
+            <li><strong>Varios:</strong> Para otros tipos de asientos (tarjetas, efectos, etc.).</li>
+          </ul>
+          <p class="mb-4 text-gray-600">Para cambiar la clasificación:</p>
+          <ol class="list-decimal list-outside ml-6 space-y-3 mb-8 text-gray-700">
+            <li>Seleccione el documento.</li>
+            <li>En el campo <strong>Abrir con</strong>, elija el programa deseado (Caja, Banco o Varios).</li>
+            <li>Haga clic en <strong>Guardar</strong>.</li>
+          </ol>
+          <p class="text-gray-600 text-sm italic">Esta clasificación dinámica asegura que el documento se abra en la pantalla de contabilización correcta, mejorando la usabilidad en flujos de trabajo repetitivos.</p>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-8 mb-4">Proceso de Contabilización</h4>
+          <p class="mb-4 text-gray-600">Una vez clasificado el documento en la bandeja y programa adecuados:</p>
+          <ol class="list-decimal list-outside ml-6 space-y-3 mb-8 text-gray-700">
+            <li>Seleccione el primer documento a procesar en la bandeja.</li>
+            <li>Haga clic en <strong>Contabilizar</strong> (icono de lápiz).</li>
+            <li>Se abrirá la pantalla de contabilización correspondiente (ej. Caja), con el documento visualizado a la izquierda para referencia fácil durante el ingreso de datos.</li>
+            <li>Complete los campos del asiento y guarde.</li>
+          </ol>
+          <p class="mb-4 text-gray-600">Al finalizar:</p>
+          <ul class="list-disc list-outside ml-6 space-y-2 mb-6 text-gray-700">
+            <li>El sistema genera el apunte contable con el documento adjunto automáticamente.</li>
+            <li>Avanza al siguiente documento del mismo tipo (ej. todos los de "Caja") para un procesamiento secuencial eficiente.</li>
+            <li>Si prefiere procesar individualmente, seleccione documentos uno a uno en lugar de seguir el flujo automático.</li>
+          </ul>
+
+          <div class="callout note">
+            <svg xmlns="http://www.w3.org/2000/svg" class="callout-icon text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <div>
+              <p class="callout-title font-extrabold">CONSEJO PARA DISPOSITIVOS MÓVILES</p>
+              <p class="callout-content text-sm">En móviles, la vista del documento se adapta automáticamente: toque para ampliar y comparar con los campos de ingreso. Esto asegura una experiencia fluida sin necesidad de zoom manual constante.</p>
+            </div>
+          </div>
+
+          <p class="mt-8 text-gray-600">Para soporte adicional, contacte a: Telf. 93 244 96 80 | <a href="https://www.enumbers.es" class="text-[var(--color-accent)] hover:underline">www.enumbers.es</a> – <a href="https://www.activopro.net" class="text-[var(--color-accent)] hover:underline">www.activopro.net</a></p>
+        </section>
+
+        <!-- Secciones 5..8 (sin cambios) -->
+
+        <a class="anchor-padding" id="5_inmovilizado"></a>
+        <section class="mb-16" id="s_5_inmovilizado">
+          <h2 class="text-3xl font-bold text-[var(--color-primary-text)] mt-12 mb-6 border-b pb-2">5. Inmovilizado y Amortizaciones</h2>
+          <p class="text-gray-500 italic bg-gray-100 p-4 rounded-lg">Documentación pendiente. Cubrirá: Clases de Inmovilizado, Ficha del Inmovilizado y Proceso de Amortización Automática y Manual.</p>
+        </section>
+
+        <a class="anchor-padding" id="6_plan_contable"></a>
+        <section class="mb-16" id="s_6_plan_contable">
+          <h2 class="text-3xl font-bold text-[var(--color-primary-text)] mt-12 mb-6 border-b pb-2">6. Plan Contable (Estructura)</h2>
+          <p class="text-lg text-gray-700 mb-8">La gestión contable es el pilar de la información financiera de cualquier entidad. <strong>ACTIVO·PRO®</strong> ofrece una solución flexible para configurar el Plan Contable.</p>
+
+          <h3 class="text-2xl font-semibold text-gray-700 mb-4">6.1 Configuración Inicial</h3>
+          <p class="mb-4 text-gray-600">Al alta de una nueva entidad, ACTIVO·PRO® permite:</p>
+          <ol class="list-decimal list-outside ml-6 space-y-2 mb-8 text-gray-700">
+            <li><strong>Selección Estándar:</strong> Usar uno de los planes preconfigurados.</li>
+            <li><strong>Personalización:</strong> Tomar un estándar y adaptarlo.</li>
+            <li><strong>Importación:</strong> Importar la estructura actual de la empresa.</li>
+          </ol>
+
+          <a class="anchor-padding" id="61_estructura_codificacion"></a>
+          <h3 class="text-2xl font-semibold text-gray-700 mt-12 mb-4">6.2 Estructura y Codificación del Código de Cuenta</h3>
+          <p class="mb-4 text-gray-600">Estructura jerárquica: <strong>Grupo + Cuenta = Mayor Contable</strong>.</p>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-6 mb-2">A. El Grupo</h4>
+          <p class="mb-2 text-gray-600">Agrupa cuentas de la misma naturaleza.</p>
+          <ul class="list-disc list-outside ml-6 space-y-1 text-gray-700">
+            <li><strong>Dígitos:</strong> 3 o 4.</li>
+            <li><strong>Jerarquía:</strong> No puede haber grupos de 4 sin el grupo de 3 asociado.</li>
+          </ul>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-6 mb-2">B. La Cuenta</h4>
+          <p class="mb-2 text-gray-600">Detalle dentro del grupo.</p>
+          <ul class="list-disc list-outside ml-6 space-y-1 text-gray-700">
+            <li><strong>Longitud máxima:</strong> 6 dígitos.</li>
+          </ul>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-6 mb-2">C. El Mayor Contable</h4>
+          <p class="mb-4 text-gray-600">Código final usado en apuntes (Grupo + Cuenta).</p>
+          <div class="callout note">
+            <svg xmlns="http://www.w3.org/2000/svg" class="callout-icon text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+            <div>
+              <p class="callout-title font-extrabold">LONGITUD TOTAL</p>
+              <p class="callout-content text-sm">El Mayor contable tendrá una longitud total de <strong>9 o 10 dígitos</strong>.</p>
+            </div>
+          </div>
+
+          <a class="anchor-padding" id="62_cuentas_terceros"></a>
+          <h3 class="text-2xl font-semibold text-gray-700 mt-12 mb-4">6.3 Cuentas de Terceros</h3>
+          <p class="mb-4 text-gray-600">Deben darse de alta desde Contactos para capturar datos fiscales y condiciones de pago.</p>
+          <p class="font-semibold text-gray-700 mb-2">Grupos de Terceros:</p>
+          <ul class="list-disc list-outside ml-6 space-y-1 mb-6 text-gray-700">
+            <li>Proveedores</li><li>Acreedores</li><li>Clientes</li><li>Deudores</li><li>Entidades de crédito</li><li>Empleados</li>
+          </ul>
+          <p class="text-gray-700">ACTIVO·PRO® gestiona auxiliares y vincula por CIF/NIF.</p>
+
+          <a class="anchor-padding" id="63_automatizacion_tributaria"></a>
+          <h3 class="text-2xl font-semibold text-gray-700 mt-12 mb-4">6.4 Automatización Tributaria (IVA, IGIC, IRPF)</h3>
+          <p class="mb-4 text-gray-600">La plataforma crea automáticamente cuentas tributarias según tipo impositivo.</p>
+
+          <h4 class="text-xl font-semibold text-gray-700 mt-6 mb-2">Creación Automática de Cuentas:</h4>
+          <p class="mb-4 text-gray-600">Mediante <strong>Auxiliares → Tipos de IVA/IGIC/IRPF</strong> se asignan grupos; la cuenta se calcula automáticamente. Ejemplo (texto):</p>
+          <div class="bg-gray-100 p-4 rounded-lg font-mono text-sm mb-4 border border-gray-300 shadow-inner">
+            Cuenta Tributaria = Número de Grupo + (Número de Tipo Impositivo × 100)
+          </div>
+          <p class="text-gray-700">Así, al indicar el tipo impositivo en un documento, la contabilización de la cuota es automática.</p>
+
+          <a class="anchor-padding" id="64_planes_predefinidos"></a>
+          <h3 class="text-2xl font-semibold text-gray-700 mt-12 mb-4">6.5 Planes Contables Estándar Disponibles</h3>
+          <p class="mb-4 text-gray-600">Catálogo de planes basados en el PGC español:</p>
+          <table class="doc-table w-full mb-8 rounded-xl overflow-hidden shadow-lg">
+            <thead><tr><th>Plan Contable</th><th>Tipo de Entidad / Régimen</th><th>Idiomas Disponibles</th></tr></thead>
+            <tbody>
+              <tr><td class="font-semibold">PGC – Normal</td><td>Régimen general</td><td>Español; Catalán; Inglés</td></tr>
+              <tr><td class="font-semibold">PGC – Pymes</td><td>Pequeñas y Medianas Empresas</td><td>Español; Catalán; Inglés</td></tr>
+              <tr><td class="font-semibold">PGC – Fundacions Catalunya</td><td>Entidades sin ánimo de lucro (Cataluña)</td><td>Catalán</td></tr>
+              <tr><td class="font-semibold">PGC – Fundacions Reduit Catalunya</td><td>Régimen simplificado (Cataluña)</td><td>Catalán</td></tr>
+              <tr><td class="font-semibold">PGC – Entidades sin ánimo de lucro</td><td>Régimen estatal</td><td>Español</td></tr>
+              <tr><td class="font-semibold">PC. – Personas Físicas Simplificado</td><td>Autónomos</td><td>Español</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <a class="anchor-padding" id="7_informes"></a>
+        <section class="mb-16" id="s_7_informes">
+          <h2 class="text-3xl font-bold text-[var(--color-primary-text)] mt-12 mb-6 border-b pb-2">7. Informes y Extractos</h2>
+          <p class="text-gray-500 italic bg-gray-100 p-4 rounded-lg">Documentación pendiente. Cubrirá: Balance de Situación, Pérdidas y Ganancias (PyG) y Extractos de Cuentas.</p>
+        </section>
+
+        <a class="anchor-padding" id="8_configuracion"></a>
+        <section class="mb-16" id="s_8_configuracion">
+          <h2 class="text-3xl font-bold text-[var(--color-primary-text)] mt-12 mb-6 border-b pb-2">8. Configuración (Auxiliares)</h2>
+          <p class="text-gray-500 italic bg-gray-100 p-4 rounded-lg">Documentación pendiente. Cubrirá: Configuración Fiscal (IVA, IRPF, Límites AEAT), Configuración Contable y Auxiliares de Terceros (Formas de Cobro/Pago, Divisas).</p>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <footer class="bg-white border-t border-gray-200 py-4 text-center text-gray-500 text-sm shadow-inner">
+    &copy; 2025 ACTIVO·PRO® | Guía de Usuario. Todos los derechos reservados.
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      const sidebar = document.getElementById('sidebar');
+      const menuToggle = document.getElementById('menu-toggle');
+      const navLinks = document.querySelectorAll('.nav-link');
+      const searchInput = document.getElementById('search-input');
+      const allNavItems = document.querySelectorAll('.nav-item');
+      const printBtn = document.getElementById('print-section');
+
+      // Mobile menu toggle
+      menuToggle.addEventListener('click', () => {
+        const expanded = menuToggle.getAttribute('aria-expanded') === 'true';
+        menuToggle.setAttribute('aria-expanded', String(!expanded));
+        sidebar.classList.toggle('open');
+      });
+
+      // Smooth scroll with header offset and close mobile menu
+      navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+          const href = link.getAttribute('href') || '';
+          if (href.startsWith('#')) {
+            e.preventDefault();
+            const targetId = href.substring(1);
+            const target = document.getElementById(targetId);
+            if (target) {
+              const headerOffset = 80;
+              const elementPosition = target.getBoundingClientRect().top + window.pageYOffset;
+              const offsetPosition = elementPosition - headerOffset;
+              window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+              setTimeout(()=> { target.parentElement.focus({preventScroll:true}); }, 500);
+            }
+          }
+          if (window.innerWidth <= 768) {
+            sidebar.classList.remove('open');
+            menuToggle.setAttribute('aria-expanded', 'false');
+          }
+        });
+      });
+
+      // Compute sections positions
+      let sections = [];
+      function computeSections(){
+        sections = [];
+        document.querySelectorAll('.anchor-padding').forEach(anchor => {
+          if (anchor.id){
+            sections.push({
+              id: anchor.id,
+              top: anchor.getBoundingClientRect().top + window.pageYOffset
+            });
+          }
+        });
+        sections.sort((a,b) => a.top - b.top);
+      }
+      computeSections();
+      window.addEventListener('load', () => { computeSections(); setTimeout(computeSections, 300); });
+      window.addEventListener('resize', () => { computeSections(); });
+
+      // Set active link on scroll
+      function setActiveLink(){
+        const scrollPos = window.scrollY + 100;
+        let currentId = sections.length ? sections[0].id : null;
+        for (let i = 0; i < sections.length; i++){
+          if (sections[i].top <= scrollPos) currentId = sections[i].id;
+          else break;
+        }
+        navLinks.forEach(link => {
+          link.classList.remove('active');
+          const parentItem = link.closest('.nav-item.parent');
+          if (parentItem) parentItem.classList.remove('active');
+        });
+        if (currentId){
+          const activeLink = document.querySelector(`.nav-link[href="#${currentId}"]`);
+          if (activeLink){
+            activeLink.classList.add('active');
+            let parent = activeLink.closest('.nav-item.parent');
+            while(parent){
+              parent.classList.add('active');
+              parent = parent.parentElement ? parent.parentElement.closest('.nav-item.parent') : null;
+            }
+          }
+        }
+      }
+      window.addEventListener('scroll', setActiveLink);
+      setActiveLink();
+
+      // Improved search
+      searchInput.addEventListener('input', function(){
+        const filter = this.value.trim().toLowerCase();
+        allNavItems.forEach(item => {
+          const link = item.querySelector('.nav-link');
+          if (!link) return;
+          const text = link.textContent.trim().toLowerCase();
+          const isParent = item.classList.contains('parent');
+          if (!isParent){
+            if (!filter || text.includes(filter)) item.style.display = 'block';
+            else item.style.display = 'none';
+          } else {
+            const children = Array.from(item.querySelectorAll('.nav-children > .nav-item'));
+            let anyChildMatches = false;
+            children.forEach(child => {
+              const childLink = child.querySelector('.nav-link');
+              const childText = childLink ? childLink.textContent.trim().toLowerCase() : '';
+              if (!filter || childText.includes(filter)) {
+                child.style.display = 'block';
+                anyChildMatches = anyChildMatches || !!filter ? childText.includes(filter) : true;
+              } else {
+                child.style.display = 'none';
+              }
+            });
+            if (!filter || text.includes(filter) || anyChildMatches) item.style.display = 'block';
+            else item.style.display = 'none';
+          }
+        });
+      });
+
+      // Close mobile sidebar when clicking outside
+      document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 768 && sidebar.classList.contains('open')){
+          if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)){
+            sidebar.classList.remove('open');
+            menuToggle.setAttribute('aria-expanded','false');
+          }
+        }
+      });
+
+      // Print only active section: open new window with styles + content and print
+      function getActiveSectionElement() {
+        // prefer nav active link if present
+        const activeLink = document.querySelector('.nav-link.active');
+        if (activeLink) {
+          const href = activeLink.getAttribute('href') || '';
+          if (href.startsWith('#')) {
+            const anchor = href.substring(1);
+            // map anchor id to section id (s_{anchor} or directly s_{...})
+            const possibleIds = [
+              's_' + anchor,
+              's_' + anchor.replace(/^\\d+_/, ''), // fallback
+              anchor.startsWith('s_') ? anchor : null
+            ].filter(Boolean);
+            for (let id of possibleIds) {
+              const el = document.getElementById(id);
+              if (el) return el;
+            }
+          }
+        }
+        // fallback: compute based on scroll position
+        const scrollPos = window.scrollY + 150;
+        let chosen = document.querySelector('main section');
+        document.querySelectorAll('main section').forEach(sec => {
+          const top = sec.getBoundingClientRect().top + window.pageYOffset;
+          if (top <= scrollPos) chosen = sec;
+        });
+        return chosen;
+      }
+
+      function buildPrintWindow(contentEl) {
+        const printWindow = window.open('', '_blank', 'width=900,height=700');
+        if (!printWindow) { alert('No se pudo abrir la ventana de impresión. Compruebe el bloqueador de ventanas emergentes.'); return null; }
+
+        // collect current inline stylesheets and the style element
+        const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+          .map(node => {
+            if (node.tagName.toLowerCase() === 'link') {
+              return `<link rel="stylesheet" href="${node.href}">`;
+            } else {
+              return `<style>${node.innerHTML}</style>`;
+            }
+          }).join('\n');
+
+        // Minimal print-specific CSS to ensure page breaks and hide UI
+        const extraPrintCSS = `
+          <style>
+            @media print {
+              header, #sidebar, #print-section, .skip-link, #menu-toggle, input[type="text"] { display:none !important; }
+            }
+            body { font-family: 'Inter', sans-serif; color:#000; background:#fff; margin: 1.0cm; }
+            .callout { box-shadow:none; border-left: 6px solid #eee; padding:0.6rem; margin-bottom:0.6rem; }
+            table { width:100%; border-collapse:collapse; }
+            th, td { border:1px solid #ddd; padding:0.35rem; font-size:11pt; }
+            h1,h2,h3 { color: #000; }
+            img, svg { max-width:100%; height:auto; }
+            section { page-break-inside: avoid; }
+          </style>
+        `;
+
+        const title = document.title || 'Impresión';
+        const headerHTML = `<header style="border-bottom:1px solid #ddd;padding-bottom:.5rem;margin-bottom:.8rem;">
+          <div style="display:flex;align-items:center;gap:.5rem;">
+            <div style="width:36px;height:36px;background:${getComputedStyle(document.documentElement).getPropertyValue('--color-accent') || '#f57c00'};border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;">A</div>
+            <div>
+              <div style="font-weight:800">${title}</div>
+              <div style="font-size:12px;color:#666">${new Date().toLocaleString()}</div>
+            </div>
+          </div>
+        </header>`;
+
+        const contentHTML = contentEl ? contentEl.innerHTML : '<p>No hay contenido seleccionado.</p>';
+
+        printWindow.document.open();
+        printWindow.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>${styles}${extraPrintCSS}</head><body>${headerHTML}<main>${contentHTML}</main></body></html>`);
+        printWindow.document.close();
+        return printWindow;
+      }
+
+      printBtn.addEventListener('click', () => {
+        const sectionEl = getActiveSectionElement();
+        if (!sectionEl) {
+          alert('No se ha podido localizar la sección activa para imprimir. Inténtalo de nuevo.');
+          return;
+        }
+        const pw = buildPrintWindow(sectionEl);
+        if (!pw) return;
+        // wait for content to load then print
+        pw.onload = function() {
+          setTimeout(()=> {
+            pw.focus();
+            pw.print();
+            // close window after print dialog (some browsers block close)
+            try { pw.close(); } catch(e){}
+          }, 300);
+        };
+      });
+
+      // Keyboard expand/collapse for parents
+      document.querySelectorAll('.nav-item.parent > .nav-link').forEach(link => {
+        link.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            const parent = link.closest('.nav-item.parent');
+            if (parent){
+              parent.classList.toggle('expanded');
+              const children = parent.querySelectorAll('.nav-children > .nav-item');
+              children.forEach(c => {
+                c.style.display = (c.style.display === 'none' || getComputedStyle(c).display === 'none') ? 'block' : 'none';
+              });
+            }
+          }
+        });
+      });
+
+      // Initial display adjustments
+      if (window.innerWidth <= 768) {
+        document.querySelectorAll('.nav-children > .nav-item').forEach(c => c.style.display = 'block');
+      }
+        });
+        // Ensure content uses full width when viewport is small and keep sidebar out of flow
+        (function(){
+        const sidebar = document.getElementById('sidebar');
+        const menuToggle = document.getElementById('menu-toggle');
+
+        function applyResponsiveState() {
+            if (window.innerWidth <= 768) {
+            // make sure sidebar is hidden (out of flow) unless explicitly opened
+            sidebar.classList.remove('open');
+            menuToggle.setAttribute('aria-expanded', 'false');
+            // remove any inline styles that might reserve space
+            document.querySelectorAll('.max-w-4xl').forEach(el => {
+                el.style.maxWidth = '';
+            });
+            } else {
+            // on desktop ensure sidebar visible in flow
+            sidebar.classList.remove('open'); // desktop shows via CSS transform: none by default
+            menuToggle.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        // initial
+        applyResponsiveState();
+        // update on resize and orientation change
+        window.addEventListener('resize', applyResponsiveState);
+        window.addEventListener('orientationchange', applyResponsiveState);
+
+        // close sidebar when a nav link is clicked (mobile)
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+            if (window.innerWidth <= 768 && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+                menuToggle.setAttribute('aria-expanded', 'false');
+            }
+            });
+        });
+        })();
+    </script>
+
+    
+</body>
+</html>
