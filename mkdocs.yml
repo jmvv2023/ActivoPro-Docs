@@ -1,0 +1,51 @@
+site_name: ActivoPro · Documentación
+site_description: Manual oficial de Contabilidad, Facturación y Tesorería
+site_author: ActivoPro
+repo_url: https://github.com/<TU_USUARIO>/activo-pro-docs
+
+theme:
+  name: material
+  palette:
+    primary: orange
+    accent: deep-orange
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - tables
+  - footnotes
+  - def_list
+  - attr_list
+  - md_in_html
+
+nav:
+  - Inicio: index.md
+  - 1. Contactos:
+      - Introducción: contactos/index.md
+      - 1.1 Clientes: contactos/clientes.md
+      - 1.2 Proveedores: contactos/proveedores.md
+      - 1.3 Cuentas Bancarias: contactos/cuentas_bancarias.md
+  - 2. Facturación: facturacion/index.md
+  - 3. Tesorería: tesoreria/index.md
+  - 4. Apuntes:
+      - Introducción: apuntes/index.md
+      - 4.1 Facturas Recibidas: apuntes/facturas_recibidas.md
+      - 4.2 Bancos: apuntes/bancos.md
+      - 4.3 Cartera: apuntes/cartera.md
+  - 5. Inmovilizado: inmovilizado/index.md
+  - 6. Plan Contable: plan_contable/index.md
+  - 7. Informes: informes/index.md
+  - 8. Configuración: configuracion/index.md
